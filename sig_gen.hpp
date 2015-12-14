@@ -6,8 +6,9 @@ class sig_gen
 {
     public:
         virtual ~sig_gen(){};
-        void complex_sine(std::vector<std::complex<float> > & data,
+        void complex_sine(std::vector<std::complex<float> > &data,
                 int num_samples, double freq, double initial_phase);
+        void const_signal(std::vector<std::complex<float> > &data, int num_samples);
     private:
         double next_phase;
 };

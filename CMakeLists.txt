@@ -22,6 +22,7 @@ cmake_minimum_required(VERSION 2.8)
 # probably need some special care!)
 # Set this to ON in order to link a static build of UHD:
 option(UHD_USE_STATIC_LIBS OFF)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 # This example also requires Boost:
 set(BOOST_REQUIRED_COMPONENTS
@@ -53,7 +54,7 @@ include_directories(
 link_directories(${Boost_LIBRARY_DIRS})
 
 ### Make the executable #######################################################
-add_executable(init_usrp init_usrp.cpp)
+add_executable(main main_test.cpp sig_gen.cc usrp_tx.cc)
 
 SET(CMAKE_BUILD_TYPE "Release")
 MESSAGE(STATUS "******************************************************************************")
@@ -67,12 +68,12 @@ MESSAGE(STATUS "****************************************************************
 # anything else we need (in this case, some Boost libraries):
 if(NOT UHD_USE_STATIC_LIBS)
     message(STATUS "Linking against shared UHD library.")
-    target_link_libraries(init_usrp ${UHD_LIBRARIES} ${Boost_LIBRARIES})
+    target_link_libraries(main ${UHD_LIBRARIES} ${Boost_LIBRARIES})
 # Shared library case: All we need to do is link against the library, and
 # anything else we need (in this case, some Boost libraries):
 else(NOT UHD_USE_STATIC_LIBS)
     message(STATUS "Linking against static UHD library.")
-    target_link_libraries(init_usrp
+    target_link_libraries(main
         # We could use ${UHD_LIBRARIES}, but linking requires some extra flags,
         # so we use this convenience variable provided to us
         ${UHD_STATIC_LIB_LINK_FLAG}

@@ -9,7 +9,7 @@ class tx_iface
     public:
         virtual ~tx_iface(){};
         virtual int send(
-            std::vector<std::vector<std::complex<float> > > &data,
+            std::vector<std::complex<float>* > &data,
             int num_samples,
             bool start_of_burst,
             bool end_of_burst) = 0;

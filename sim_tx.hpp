@@ -11,17 +11,15 @@ class sim_tx : public tx_iface
     public:
         virtual ~sim_tx(){};
         inline int send(
-            std::vector<std::vector<std::complex<float> > > &buffers,
+            std::vector<std::complex<float>* > &data,
             int num_samples,
             bool sob,
             bool eob) override
         {
-            std::cout << "sending data from " << buffers.size() <<
-               " buffers" << std::endl;
-            if(buffers.size() > 0) {
-                std::vector<std::complex<float> > *buf = &buffers[0];
-                for(int i = 0; i < buf->size(); i++) {
-                    std::cout << (*buf)[i] << std::endl;
+            if(data.size() > 0) {
+                std::complex<float> *buf = data[0];
+                for(int i = 0; i < num_samples; i++) {
+                    std::cout << (*buf) << std::endl;
                 }
             }
             return 0;
