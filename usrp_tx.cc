@@ -17,9 +17,11 @@ usrp_tx::usrp_tx(double tx_freq, double tx_rate) : phase_cal(4) {
     addr_args["addr1"] = IP_USRP_1;
 
     this->usrp = uhd::usrp::multi_usrp::make(addr_args);
+
     //set subdev spec on all mboards.
     //use TX/RX ports on both dboards.
     this->usrp->set_tx_subdev_spec(uhd::usrp::subdev_spec_t("A:0 B:0"));
+    this->usrp->set_rx_subdev_spec(uhd::usrp::subdev_spec_t("A:0 B:0"));
 
     this->usrp->set_clock_source("external"); //applies to all mboards
     this->usrp->set_time_source("external"); //applies to all mboards
@@ -38,11 +40,11 @@ usrp_tx::usrp_tx(double tx_freq, double tx_rate) : phase_cal(4) {
     boost::this_thread::sleep(boost::posix_time::seconds(2));
 
     //we will tune the frontends in 500ms from now
+    std::cout << "tuning all frontends to " << tx_freq << std::endl;
     uhd::time_spec_t cmd_time = usrp->get_time_now() +
-        uhd::time_spec_t(0.5);
+        uhd::time_spec_t(0.1);
     //sets command time on all devices
     //the next commands are all timed
-    std::cout << "tuning all frontends to " << tx_freq << std::endl;
     this->usrp->set_command_time(cmd_time);
 
     this->usrp->set_tx_freq(tx_freq, 0);
@@ -53,10 +55,13 @@ usrp_tx::usrp_tx(double tx_freq, double tx_rate) : phase_cal(4) {
     //end timed commands
     this->usrp->clear_command_time();
 
+    boost::this_thread::sleep(boost::posix_time::seconds(2));
+
     std::cout << "devices initialized" << std::endl;
 
     uhd::stream_args_t stream_args("fc32", "sc16");
     stream_args.channels = {0ul,1ul,2ul,3ul};
+    //stream_args.channels = boost::assign::list_of(0ul)(1ul)(2ul)(3ul);
     this->tx_streamer = this->usrp->get_tx_stream(stream_args);
 
 }
@@ -69,18 +74,26 @@ int usrp_tx::send(
 {
     uhd::tx_metadata_t meta;
     if(start_of_burst) {
+        std::cout << this->usrp->get_mboard_sensor("ref_locked", 0).to_pp_string().c_str() << std::endl;
+        std::cout << this->usrp->get_mboard_sensor("ref_locked", 1).to_pp_string().c_str() << std::endl;
         std::cout << "starting burst" << std::endl;
-        meta.start_of_burst = true;
+        //meta.start_of_burst = true;
+        meta.start_of_burst = false;
         meta.has_time_spec = true;
+        meta.end_of_burst = false;
         meta.time_spec = this->usrp->get_time_now() +
                             uhd::time_spec_t(0.1);
+
     } else if(end_of_burst) {
         std::cout << "ending burst" << std::endl;
         meta.end_of_burst = true;
+        meta.start_of_burst = true;
+        meta.has_time_spec = true;
     } else {
-
+        meta.end_of_burst = false;
+        meta.start_of_burst = false;
+        meta.has_time_spec = false;
     }
-
 
     return this->tx_streamer->send(data, num_samples, meta);
 }

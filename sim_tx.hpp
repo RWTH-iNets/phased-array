@@ -16,12 +16,6 @@ class sim_tx : public tx_iface
             bool sob,
             bool eob) override
         {
-            if(data.size() > 0) {
-                std::complex<float> *buf = data[0];
-                for(int i = 0; i < num_samples; i++) {
-                    std::cout << (*buf) << std::endl;
-                }
-            }
             return 0;
         }
 };

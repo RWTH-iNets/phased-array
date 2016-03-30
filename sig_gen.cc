@@ -18,10 +18,11 @@ void sig_gen::complex_sine(std::vector<std::complex<float> > & data,
     this->next_phase = curr_phase + 2.0 * M_PI * freq;
 }
 
-void sig_gen::const_signal(std::vector<std::complex<float> > &data, int num_samples)
+void sig_gen::const_signal(std::complex<float>* data, int num_samples)
 {
     //data.clear();
     for(int i = 0; i < num_samples; i++) {
-        data[i] = (std::complex<float>(0.7,0.0));
+        data[i] = (std::complex<float>(0.5,0.5));
+        //data[i] = (std::complex<float>(0.0,0.0));
     }
 }
