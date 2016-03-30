@@ -13,27 +13,28 @@ int main() {
   
     sig_gen *gen = new sig_gen();
 
-    std::vector<std::complex<float> > buffer0(10024);
-    std::vector<std::complex<float> > buffer1(10024);
-    std::vector<std::complex<float> > buffer2(10024);
-    std::vector<std::complex<float> > buffer3(10024);
-    std::vector<std::complex<float>* > buffers(4, &buffer0.front());
-    buffers[0] = &buffer0.front();
-    buffers[1] = &buffer1.front();
-    buffers[2] = &buffer2.front();
-    buffers[3] = &buffer3.front();
+    std::vector<std::complex<float>* > buffers(4, 0);
 
-    gen->const_signal(buffer0, 10024);
-    gen->const_signal(buffer1, 10024);
-    gen->const_signal(buffer2, 10024);
-    gen->const_signal(buffer3, 10024);
+    std::complex<float>* buf0 = new std::complex<float>[1024];
+    std::complex<float>* buf1 = new std::complex<float>[1024];
+    std::complex<float>* buf2 = new std::complex<float>[1024];
+    std::complex<float>* buf3 = new std::complex<float>[1024];
+
+    buffers[0] = buf0;
+    buffers[1] = buf1;
+    buffers[2] = buf2;
+    buffers[3] = buf3;
+
+    gen->const_signal(buffers[0], 1024);
+    gen->const_signal(buffers[1], 1024);
+    gen->const_signal(buffers[2], 1024);
+    gen->const_signal(buffers[3], 1024);
 
     //adjust channel phases:
     for(int i = 0; i < 1024; i++) {
-        buffers[0][i] = buffers[0][i] * std::polar(1.0f, -0.8f * 2.0f * (float)M_PI);
-        buffers[1][i] = buffers[1][i] * std::polar(1.0f);//this->phase_cal[1];
-        buffers[2][i] = buffers[2][i] * std::polar(1.0f);//this->phase_cal[2];
-        buffers[3][i] = buffers[3][i] * std::polar(1.0f);//this->phase_cal[3];
+        buf1[i] = buf1[i] * std::polar(1.01f, (((2.0f*(float)M_PI) / 360.0f) * 89.0f));
+        buf2[i] = buf2[i] * std::polar(1.1f, (((2.0f*(float)M_PI) / 360.0f) * -32.0f));
+        buf3[i] = buf3[i] * std::polar(1.1f, (((2.0f*(float)M_PI) / 360.0f) * 19.0f));
     }
 
     for(int i = 0; i < 10e6; i++) {
