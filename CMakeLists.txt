@@ -54,7 +54,7 @@ include_directories(
 link_directories(${Boost_LIBRARY_DIRS})
 
 ### Make the executable #######################################################
-add_executable(main main_test.cpp sig_gen.cc usrp_tx.cc)
+add_executable(main main_test.cpp sig_gen.cc usrp_tx.cc hw_iface_impl.cpp filter.cpp)
 
 SET(CMAKE_BUILD_TYPE "Release")
 MESSAGE(STATUS "******************************************************************************")
