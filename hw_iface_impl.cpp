@@ -46,7 +46,7 @@ hw_iface_impl::hw_iface_impl():ref_sig_num_samps_per_periode(1024), tx_cal_threa
     this->usrp->set_clock_source("external"); //applies to all mboards
     this->usrp->set_time_source("external"); //applies to all mboards
 
-    double tx_freq = 3.7001e9;
+    double tx_freq = 3.700001e9;
     double rx_freq = 3.7e9;
     //Set time at next PPS to zero
     //Convenience function. Waits for PPS on one device and then
@@ -108,8 +108,8 @@ hw_iface_impl::hw_iface_impl():ref_sig_num_samps_per_periode(1024), tx_cal_threa
 
 void hw_iface_impl::cal_rx_phase(float* delays_out)
 {
-    int num_avg = 32;
-    int num_samps = 4096;
+    int num_avg = 8;
+    int num_samps = 8192;
     int skip = 128;
 
     std::cout << "Rx Rate = " << this->usrp->get_rx_rate(0) << std::endl;
@@ -229,16 +229,22 @@ void hw_iface_impl::cal_rx_phase(float* delays_out)
     std::cout << "Phase 02: " << ((rx_02_delay_avg * f0) / fs) * 360.0 << std::endl;
     std::cout << "Phase 03: " << ((rx_03_delay_avg * f0) / fs) * 360.0 << std::endl;
     std::cout << "###### RX Phase Cal Report End ######" << std::endl;
+    
+    delays_out[0] = ((rx_01_delay_avg * f0) / fs) * 2.0 * M_PI;
+    delays_out[1] = ((rx_02_delay_avg * f0) / fs) * 2.0 * M_PI;
+    delays_out[2] = ((rx_03_delay_avg * f0) / fs) * 2.0 * M_PI;
 }
 
-void hw_iface_impl::send_tx_cal_tones_async()
+void hw_iface_impl::send_tx_cal_tones_async(float* tx_phases)
 {
     if(this->tx_cal_thread) {
         std::cout << "Existing TX cal thread detected" << std::endl;
         return;
     }
     this->run_tx_cal_tones_loop = true;
-    this->tx_cal_thread = new boost::thread(boost::bind(&hw_iface_impl::send_tx_cal_tones, this));
+    this->tx_cal_thread = new boost::thread(
+                            boost::bind(&hw_iface_impl::send_tx_cal_tones,
+                                        this, tx_phases));
 }
 
 void hw_iface_impl::end_tx_cal_tones_async()
@@ -253,18 +259,29 @@ void hw_iface_impl::end_tx_cal_tones_async()
     this->tx_cal_thread = 0;
 }
 
-void hw_iface_impl::send_tx_cal_tones()
+void hw_iface_impl::send_tx_cal_tones(float* tx_phases)
 {
     uhd::stream_args_t stream_args("fc32", "sc16");
     stream_args.channels = {0ul,1ul,2ul,3ul};
     this->tx_streamer = this->usrp->get_tx_stream(stream_args);
 
-    std::vector<std::complex<float> > buffer(this->tx_streamer->get_max_num_samps() * 10);
-    int buffer_len = this->tx_streamer->get_max_num_samps() * 10;
-    for(int i = 0;i < buffer_len;i++) {
-        buffer[i] = std::complex<float>(0.7f, 0.7f);
+    int buffer_len = this->tx_streamer->get_max_num_samps();
+    std::vector<std::complex<float> > buffer_0(buffer_len);
+    std::vector<std::complex<float> > buffer_1(buffer_len);
+    std::vector<std::complex<float> > buffer_2(buffer_len);
+    std::vector<std::complex<float> > buffer_3(buffer_len);
+
+    std::vector<std::complex<float>* > buffers(4);
+    buffers[0] = (std::complex<float>* )(&buffer_0.front());
+    buffers[1] = (std::complex<float>* )(&buffer_1.front());
+    buffers[2] = (std::complex<float>* )(&buffer_2.front());
+    buffers[3] = (std::complex<float>* )(&buffer_3.front());
+
+    for(int j = 0; j < 4; j++) {
+      for(int i = 0; i < buffer_len; i++) {
+        buffers[j][i] = std::complex<float>(std::polar(0.7f, 1.0f*tx_phases[j]));
+      }
     }
-    std::vector<std::complex<float>* > buffers(4, &buffer.front());
 
     uhd::tx_metadata_t meta;
     std::cout << "starting burst" << std::endl;
