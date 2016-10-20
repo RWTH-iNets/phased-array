@@ -23,7 +23,7 @@ class hw_iface_impl : public hw_iface
 {
     public:
         hw_iface_impl();
-        void cal_rx_rf_phase(int num_samps) override;
+        void cal_rx_phase(float* delays_out) override;
         void send_tx_cal_tones_async() override;
         void end_tx_cal_tones_async() override;
         void send_tx_cal_tones() override;
@@ -31,8 +31,7 @@ class hw_iface_impl : public hw_iface
 
 
     private:
-        uhd::usrp::multi_usrp::sptr tx_usrp;
-        uhd::usrp::multi_usrp::sptr rx_usrp;
+        uhd::usrp::multi_usrp::sptr usrp;
         uhd::tx_streamer::sptr tx_streamer;
         uhd::rx_streamer::sptr rx_streamer;
         std::vector<std::complex<float> > sine_table;

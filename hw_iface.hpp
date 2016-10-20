@@ -10,7 +10,7 @@ class hw_iface
         virtual void send_tx_cal_tones_async() = 0;
         virtual void end_tx_cal_tones_async() = 0;
         virtual void send_tx_cal_tones() = 0;
-        virtual void cal_rx_rf_phase(int num_samps) = 0;
+        virtual void cal_rx_phase(float* delays_out) = 0;
 };
 
 #endif
