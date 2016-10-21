@@ -1,21 +1,28 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <iostream>
-#include "hw_iface.hpp"
-#include "hw_iface_impl.hpp"
-#include "sig_gen.hpp"
+
 #include <uhd/utils/thread_priority.hpp>
 #include <uhd/utils/safe_main.hpp>
 
-int UHD_SAFE_MAIN(int argc, char *argv[]){
-    uhd::set_thread_priority_safe();
-    std::cout << "Running Test" << std::endl;
+#include "hw_iface_impl.hpp"
+
+void rx_cal_test()
+{
     hw_iface *hw = new hw_iface_impl();
 
     float rx_phases[3] = {0.0, 0.0, 0.0};
-    hw->cal_rx_phase(rx_phases);
+    hw->cal_rx_phase(rx_phases, false);
+}
+
+void rx_tx_cal_test()
+{
+    hw_iface *hw = new hw_iface_impl();
+
+    float rx_phases[3] = {0.0, 0.0, 0.0};
+    hw->cal_rx_phase(rx_phases, false);
     std::cout << "Calibrated Rx phases. Now turn off ref signal." << std::endl;
-    boost::this_thread::sleep(boost::posix_time::seconds(10));
+    boost::this_thread::sleep(boost::posix_time::seconds(5));
 
     std::cout << "Calibrating Tx phases." << std::endl;
     float tx_phases[3] = {0.0, 0.0, 0.0};
@@ -23,10 +30,10 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 
     hw->send_tx_cal_tones_async(tx_phase_adj);
     boost::this_thread::sleep(boost::posix_time::seconds(5));
-    hw->cal_rx_phase(tx_phases);
+    hw->cal_rx_phase(tx_phases, true);
     hw->end_tx_cal_tones_async();
 
-    boost::this_thread::sleep(boost::posix_time::seconds(10));
+    boost::this_thread::sleep(boost::posix_time::seconds(5));
 
     std::cout << "Transmitting calibrated Tx signal" << std::endl;
    
@@ -46,4 +53,11 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     while(i < 100) {
       boost::this_thread::sleep(boost::posix_time::seconds(10));
     }
+}
+
+int UHD_SAFE_MAIN(int argc, char *argv[]){
+    uhd::set_thread_priority_safe();
+
+    std::cout << "Running Test" << std::endl;
+    rx_tx_cal_test();
 }

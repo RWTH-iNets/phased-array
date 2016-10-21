@@ -1,22 +1,24 @@
-#include "hw_iface_impl.hpp"
-#include <boost/date_time/posix_time/posix_time.hpp>
-#include <boost/assign/list_of.hpp> // for 'list_of()'
-#include <boost/assert.hpp>
-#include "filter.hpp"
 #include <string>
 #include <time.h>
 #include <algorithm>
 #include <sstream>
+
+#include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/assign/list_of.hpp> // for 'list_of()'
+#include <boost/assert.hpp>
+
+#include "hw_iface_impl.hpp"
+#include "config.hpp"
 
 hw_iface_impl::hw_iface_impl():ref_sig_num_samps_per_periode(1024), tx_cal_thread(0),
                                 rx_cal_data{std::polar(1.0f, 0.0f),
                                             std::polar(1.0f, (float)M_PI*(57.6f / 180.0f)),
                                             std::polar(1.0f, (float)M_PI*(-6.6f / 180.0f)),
                                             std::polar(1.0f, (float)M_PI*(0.9f / 180.0f))},
-                                rx_phase_alpha(0.85f),
-                                // RC filter, tau = xx samples (alpha = exp(-1/tau))
-                                ofs()
+                                filter_lp()
 {
+
+    filter_lp.load_taps(tx_rx_cal_lp, 257);
 
     for( int i = 0; i < ref_sig_num_samps_per_periode; i++) {
         sine_table.push_back(std::polar(1.0f,
@@ -46,7 +48,7 @@ hw_iface_impl::hw_iface_impl():ref_sig_num_samps_per_periode(1024), tx_cal_threa
     this->usrp->set_clock_source("external"); //applies to all mboards
     this->usrp->set_time_source("external"); //applies to all mboards
 
-    double tx_freq = 3.700001e9;
+    double tx_freq = 3.7000019e9;
     double rx_freq = 3.7e9;
     //Set time at next PPS to zero
     //Convenience function. Waits for PPS on one device and then
@@ -106,7 +108,7 @@ hw_iface_impl::hw_iface_impl():ref_sig_num_samps_per_periode(1024), tx_cal_threa
 }
 
 
-void hw_iface_impl::cal_rx_phase(float* delays_out)
+void hw_iface_impl::cal_rx_phase(float* delays_out, bool tx_ref)
 {
     int num_avg = 8;
     int num_samps = 8192;
@@ -154,6 +156,16 @@ void hw_iface_impl::cal_rx_phase(float* delays_out)
           ((std::complex<float>*) rx_buffers[3]) + skip;
 
         int num = num_samps - skip;
+        
+        //when using int. tx signal as ref, filter ext ref.
+        if(tx_ref) {
+            int flt_out = 0;
+            filter_lp.apply(rx_0_buffer, num, &flt_out); 
+            filter_lp.apply(rx_1_buffer, num, &flt_out); 
+            filter_lp.apply(rx_2_buffer, num, &flt_out); 
+            filter_lp.apply(rx_3_buffer, num, &flt_out); 
+            num = flt_out;
+        }
 
         float xcorr_01[2*num - 1];
         float xcorr_02[2*num - 1];
