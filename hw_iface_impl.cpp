@@ -18,7 +18,7 @@ hw_iface_impl::hw_iface_impl():ref_sig_num_samps_per_periode(1024), tx_cal_threa
                                 filter_lp()
 {
 
-    filter_lp.load_taps(tx_rx_cal_lp, 257);
+    filter_lp.load_taps(tx_rx_cal_lp, 129);
 
     for( int i = 0; i < ref_sig_num_samps_per_periode; i++) {
         sine_table.push_back(std::polar(1.0f,
@@ -48,7 +48,7 @@ hw_iface_impl::hw_iface_impl():ref_sig_num_samps_per_periode(1024), tx_cal_threa
     this->usrp->set_clock_source("external"); //applies to all mboards
     this->usrp->set_time_source("external"); //applies to all mboards
 
-    double tx_freq = 3.7000019e9;
+    double tx_freq = 3.70001e9;
     double rx_freq = 3.7e9;
     //Set time at next PPS to zero
     //Convenience function. Waits for PPS on one device and then
@@ -89,6 +89,10 @@ hw_iface_impl::hw_iface_impl():ref_sig_num_samps_per_periode(1024), tx_cal_threa
     stream_args_rx.channels = {0ul,1ul,2ul,3ul};
     this->rx_streamer = this->usrp->get_rx_stream(stream_args_rx);
 
+    uhd::stream_args_t stream_args_tx("fc32", "sc16");
+    stream_args_tx.channels = {0ul,1ul,2ul,3ul};
+    this->tx_streamer = this->usrp->get_tx_stream(stream_args_tx);
+
     this->usrp->set_tx_rate(1e6);
     this->usrp->set_rx_rate(1e6);
 
@@ -108,7 +112,7 @@ hw_iface_impl::hw_iface_impl():ref_sig_num_samps_per_periode(1024), tx_cal_threa
 }
 
 
-void hw_iface_impl::cal_rx_phase(float* delays_out, bool tx_ref)
+void hw_iface_impl::cal_rx_phase(float* phase_diffs_out, bool tx_ref)
 {
     int num_avg = 8;
     int num_samps = 8192;
@@ -129,9 +133,9 @@ void hw_iface_impl::cal_rx_phase(float* delays_out, bool tx_ref)
 
     uhd::rx_metadata_t meta;
 
-    float rx_01_delay_avg = 0.0;
-    float rx_02_delay_avg = 0.0;
-    float rx_03_delay_avg = 0.0;
+    float rx_01_phi_avg = 0.0;
+    float rx_02_phi_avg = 0.0;
+    float rx_03_phi_avg = 0.0;
 
     for(int j = 0; j < num_avg; j++) {
         //very first ~50 samples are crap
@@ -167,10 +171,6 @@ void hw_iface_impl::cal_rx_phase(float* delays_out, bool tx_ref)
             num = flt_out;
         }
 
-        float xcorr_01[2*num - 1];
-        float xcorr_02[2*num - 1];
-        float xcorr_03[2*num - 1];
-
         std::stringstream filename;
         std::ofstream dump;
         filename << "./cal/rx_dump-" << j << ".csv";
@@ -189,62 +189,43 @@ void hw_iface_impl::cal_rx_phase(float* delays_out, bool tx_ref)
         dump.flush();
         dump.close();
 
-        for(int n = 0; n < ((2*num) - 1); n++) {
-          xcorr_01[n] = 0.0; 
-          xcorr_02[n] = 0.0; 
-          xcorr_03[n] = 0.0; 
-          for(int m = 0; m < num; m++) {
-            if((m+n >= num - 1) && (m+n < (2*num - 1))) {
-              xcorr_01[n] += std::real(std::conj(rx_1_buffer[m]) * rx_0_buffer[(m + n)
-                              - (num - 1)]);
-              xcorr_02[n] += std::real(std::conj(rx_2_buffer[m]) * rx_0_buffer[(m + n)
-                              - (num - 1)]);
-              xcorr_03[n] += std::real(std::conj(rx_3_buffer[m]) * rx_0_buffer[(m + n)
-                              - (num - 1)]);
-            } 
-          }
+        std::complex<float> xcorr_01(0.0f, 0.0f);
+        std::complex<float> xcorr_02(0.0f, 0.0f);
+        std::complex<float> xcorr_03(0.0f, 0.0f);
+
+        for(int m = 0; m < num; m++) {
+          xcorr_01 += (std::conj(rx_1_buffer[m]) * rx_0_buffer[m]);
+          xcorr_02 += (std::conj(rx_2_buffer[m]) * rx_0_buffer[m]);
+          xcorr_03 += (std::conj(rx_3_buffer[m]) * rx_0_buffer[m]);
         }
 
-        filename.str("");
-        std::ofstream corr;
-        filename << "./cal/corr-" << j << ".csv";
-        corr.open(filename.str());
-        for(int i = 0; i < 2*num-1; i++) {
-          corr << xcorr_01[i] << ";"
-               << xcorr_02[i] << ";"
-               << xcorr_03[i] << ";"
-               << std::endl;
-        }
-        corr.flush();
-        corr.close();
+        std::cout << "xcorr_01 = " << xcorr_01 << std::endl;
+        std::cout << "xcorr_02 = " << xcorr_02 << std::endl;
+        std::cout << "xcorr_03 = " << xcorr_03 << std::endl;
+        std::cout << "arg(xcorr_01) = " << std::arg(xcorr_01) << std::endl;
+        std::cout << "arg(xcorr_02) = " << std::arg(xcorr_02) << std::endl;
+        std::cout << "arg(xcorr_03) = " << std::arg(xcorr_03) << std::endl;
 
-        int rx_01_delay = std::max_element(xcorr_01, xcorr_01 + (2*num - 1))
-                            - xcorr_01 - (num - 1);
-        int rx_02_delay = std::max_element(xcorr_02, xcorr_02 + (2*num - 1))
-                            - xcorr_02 - (num - 1);
-        int rx_03_delay = std::max_element(xcorr_03, xcorr_03 + (2*num - 1))
-                            - xcorr_03 - (num - 1);
-
-        rx_01_delay_avg += rx_01_delay;
-        rx_02_delay_avg += rx_02_delay;
-        rx_03_delay_avg += rx_03_delay;
+        rx_01_phi_avg += std::arg(xcorr_01);
+        rx_02_phi_avg += std::arg(xcorr_02);
+        rx_03_phi_avg += std::arg(xcorr_03);
     }
 
-    rx_01_delay_avg /= (float)num_avg;
-    rx_02_delay_avg /= (float)num_avg;
-    rx_03_delay_avg /= (float)num_avg;
+    rx_01_phi_avg /= (float)num_avg;
+    rx_02_phi_avg /= (float)num_avg;
+    rx_03_phi_avg /= (float)num_avg;
 
     float f0 = 1e3;
     float fs = 1e6;
     std::cout << "###### RX Phase Cal Report ##########" << std::endl;
-    std::cout << "Phase 01: " << ((rx_01_delay_avg * f0) / fs) * 360.0 << std::endl;
-    std::cout << "Phase 02: " << ((rx_02_delay_avg * f0) / fs) * 360.0 << std::endl;
-    std::cout << "Phase 03: " << ((rx_03_delay_avg * f0) / fs) * 360.0 << std::endl;
+    std::cout << "Phase 01: " << (rx_01_phi_avg / (2.0f * M_PI)) * 360.0 << std::endl;
+    std::cout << "Phase 02: " << (rx_02_phi_avg / (2.0f * M_PI)) * 360.0 << std::endl;
+    std::cout << "Phase 03: " << (rx_03_phi_avg / (2.0f * M_PI)) * 360.0 << std::endl;
     std::cout << "###### RX Phase Cal Report End ######" << std::endl;
     
-    delays_out[0] = ((rx_01_delay_avg * f0) / fs) * 2.0 * M_PI;
-    delays_out[1] = ((rx_02_delay_avg * f0) / fs) * 2.0 * M_PI;
-    delays_out[2] = ((rx_03_delay_avg * f0) / fs) * 2.0 * M_PI;
+    phase_diffs_out[0] = rx_01_phi_avg;
+    phase_diffs_out[1] = rx_02_phi_avg;
+    phase_diffs_out[2] = rx_03_phi_avg;
 }
 
 void hw_iface_impl::send_tx_cal_tones_async(float* tx_phases)
@@ -273,25 +254,28 @@ void hw_iface_impl::end_tx_cal_tones_async()
 
 void hw_iface_impl::send_tx_cal_tones(float* tx_phases)
 {
-    uhd::stream_args_t stream_args("fc32", "sc16");
-    stream_args.channels = {0ul,1ul,2ul,3ul};
-    this->tx_streamer = this->usrp->get_tx_stream(stream_args);
 
     int buffer_len = this->tx_streamer->get_max_num_samps();
-    std::vector<std::complex<float> > buffer_0(buffer_len);
-    std::vector<std::complex<float> > buffer_1(buffer_len);
-    std::vector<std::complex<float> > buffer_2(buffer_len);
-    std::vector<std::complex<float> > buffer_3(buffer_len);
 
-    std::vector<std::complex<float>* > buffers(4);
-    buffers[0] = (std::complex<float>* )(&buffer_0.front());
-    buffers[1] = (std::complex<float>* )(&buffer_1.front());
-    buffers[2] = (std::complex<float>* )(&buffer_2.front());
-    buffers[3] = (std::complex<float>* )(&buffer_3.front());
+    std::complex<float>* buffer_0 = new std::complex<float>[4096];
+    std::complex<float>* buffer_1 = new std::complex<float>[4096];
+    std::complex<float>* buffer_2 = new std::complex<float>[4096];
+    std::complex<float>* buffer_3 = new std::complex<float>[4096];
+    buffer_len = 4096;
+
+    std::vector<void* > buffers;
+    buffers.push_back((void*)buffer_0);
+    buffers.push_back((void*)buffer_1);
+    buffers.push_back((void*)buffer_2);
+    buffers.push_back((void*)buffer_3);
 
     for(int j = 0; j < 4; j++) {
+      std::complex<float> tmp;
+      tmp = std::polar(0.7f, tx_phases[j]);
+      std::cout << "loading channel " << j
+                << " with: " << buffer_len << " items of " << tmp << std::endl;
       for(int i = 0; i < buffer_len; i++) {
-        buffers[j][i] = std::complex<float>(std::polar(0.7f, 1.0f*tx_phases[j]));
+        ((std::complex<float>*)buffers[j])[i] = tmp;
       }
     }
 
@@ -315,6 +299,10 @@ void hw_iface_impl::send_tx_cal_tones(float* tx_phases)
     //send a mini EOB packet
     meta.end_of_burst = true;
     this->tx_streamer->send("", 0, meta);
+    delete[] buffer_0;
+    delete[] buffer_1;
+    delete[] buffer_2;
+    delete[] buffer_3;
 }
 
 /*
