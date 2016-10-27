@@ -17,10 +17,10 @@ class hw_iface_impl : public hw_iface
 {
     public:
         hw_iface_impl();
-        void cal_rx_phase(float* phase_diffs_out, bool tx_ref) override;
-        void send_tx_cal_tones_async(float* tx_phases) override;
+        void cal_rx_channels(std::complex<float>* cal_out, bool tx_ref) override;
+        void send_tx_cal_tones_async(std::complex<float>* cal) override;
         void end_tx_cal_tones_async() override;
-        void send_tx_cal_tones(float* tx_phases) override;
+        void send_tx_cal_tones(std::complex<float>* cal) override;
         virtual ~hw_iface_impl(){};
 
 
