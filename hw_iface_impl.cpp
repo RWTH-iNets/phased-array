@@ -122,7 +122,7 @@ hw_iface_impl::hw_iface_impl():ref_sig_num_samps_per_periode(1024), tx_cal_threa
 void hw_iface_impl::cal_rx_channels(std::complex<float>* cal_out, bool tx_ref)
 {
     int num_avg = 8;
-    int num_samps = 8192;
+    int num_samps = 8*8192;
     int skip = 128;
 
     std::cout << "Rx Rate = " << this->usrp->get_rx_rate(0) << std::endl;
@@ -272,6 +272,11 @@ void hw_iface_impl::cal_rx_channels(std::complex<float>* cal_out, bool tx_ref)
     rx_2_pwr_avg /= (float)num_avg;
     rx_3_pwr_avg /= (float)num_avg;
     
+    float rms0 = std::sqrt(rx_0_pwr_avg);
+    float rms1 = std::sqrt(rx_1_pwr_avg);
+    float rms2 = std::sqrt(rx_2_pwr_avg);
+    float rms3 = std::sqrt(rx_3_pwr_avg);
+
     float ampl0 = std::sqrt(rx_0_pwr_avg) * std::sqrt(2.0f);
     float ampl1 = std::sqrt(rx_1_pwr_avg) * std::sqrt(2.0f);
     float ampl2 = std::sqrt(rx_2_pwr_avg) * std::sqrt(2.0f);
@@ -281,20 +286,15 @@ void hw_iface_impl::cal_rx_channels(std::complex<float>* cal_out, bool tx_ref)
     float scale_02 = ampl0 / ampl2;
     float scale_03 = ampl0 / ampl3;
 
-    std::cout << "###### RX Phase Cal Report ##########" << std::endl;
-    std::cout << "Phase 01: " << (rx_01_phi_avg / (2.0f * M_PI)) * 360.0 << std::endl;
-    std::cout << "Phase 02: " << (rx_02_phi_avg / (2.0f * M_PI)) * 360.0 << std::endl;
-    std::cout << "Phase 03: " << (rx_03_phi_avg / (2.0f * M_PI)) * 360.0 << std::endl;
-    std::cout << "###### RX Phase Cal Report End ######" << std::endl;
-    std::cout << "###### RX Ampl Cal Report ##########" << std::endl;
-    std::cout << "Ampl 0: " << ampl0 << std::endl;
-    std::cout << "Ampl 1: " << ampl1 << std::endl;
-    std::cout << "Ampl 2: " << ampl2 << std::endl;
-    std::cout << "Ampl 3: " << ampl3 << std::endl;
-    std::cout << "Ampl 01: " << scale_01 << std::endl;
-    std::cout << "Ampl 02: " << scale_02 << std::endl;
-    std::cout << "Ampl 03: " << scale_03 << std::endl;
-    std::cout << "###### RX Ampl Cal Report End ######" << std::endl;
+    std::cout << "###### Cal Report ##########" << std::endl << std::endl;
+    std::cout << "Phi 01: " << (rx_01_phi_avg / (2.0f * M_PI)) * 360.0 << std::endl;
+    std::cout << "Phi 02: " << (rx_02_phi_avg / (2.0f * M_PI)) * 360.0 << std::endl;
+    std::cout << "Phi 03: " << (rx_03_phi_avg / (2.0f * M_PI)) * 360.0 << std::endl;
+    std::cout << "Vrms 0: " << rms0 << std::endl;
+    std::cout << "Vrms 1: " << rms1 << std::endl;
+    std::cout << "Vrms 2: " << rms2 << std::endl;
+    std::cout << "Vrms 3: " << rms3 << std::endl << std::endl;
+    std::cout << "###### Cal Report End ######" << std::endl;
     
     cal_out[0] = std::polar(scale_01, rx_01_phi_avg);
     cal_out[1] = std::polar(scale_02, rx_02_phi_avg);
