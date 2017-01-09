@@ -52,7 +52,14 @@ void rx_tx_cal_test()
               << "h_tx = " << h_tx_02_mag << std::endl
               << "scale = " << scale02 << std::endl;
 
-    tx_adj[2] = tx_adj[2] / scale02;
+    float h_ref_02_phase = std::arg(rx_cal[1]);
+    float h_tx_02_phase = std::arg(tx_cal[1]);
+    float scale02_phase = (h_tx_02_phase - h_ref_02_phase - (-6.22f * ((2.0f * (float)M_PI) / 360.0f)));
+    std::cout << "h_ref = " << h_ref_02_phase << std::endl
+              << "h_tx = " << h_tx_02_phase << std::endl
+              << "scale = " << scale02_phase << std::endl;
+
+    tx_adj[2] = (tx_adj[2] / scale02) / std::polar(1.0f, scale02_phase);
 
     hw->send_tx_cal_tones_async(tx_adj);
     boost::this_thread::sleep(boost::posix_time::seconds(60));
