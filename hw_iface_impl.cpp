@@ -282,9 +282,9 @@ void hw_iface_impl::cal_rx_channels(std::complex<float>* cal_out, bool tx_ref)
     float ampl2 = std::sqrt(rx_2_pwr_avg) * std::sqrt(2.0f);
     float ampl3 = std::sqrt(rx_3_pwr_avg) * std::sqrt(2.0f);
 
-    float scale_01 = ampl0 / ampl1;
-    float scale_02 = ampl0 / ampl2;
-    float scale_03 = ampl0 / ampl3;
+    float scale_01 = rms1 / rms0;
+    float scale_02 = rms2 / rms0;
+    float scale_03 = rms3 / rms0;
 
     std::cout << "###### Cal Report ##########" << std::endl << std::endl;
     std::cout << "Phi 01: " << (rx_01_phi_avg / (2.0f * M_PI)) * 360.0 << std::endl;
@@ -344,7 +344,7 @@ void hw_iface_impl::send_tx_cal_tones(std::complex<float>* cal)
 
     for(int j = 0; j < 4; j++) {
       std::complex<float> tmp;
-      tmp = 0.8f * cal[j];
+      tmp = cal[j];
       std::cout << "Loding cal for TX chan "
                 << j << " " << std::abs(tmp) << std::endl;
       for(int i = 0; i < buffer_len; i++) {
