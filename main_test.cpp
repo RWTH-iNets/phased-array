@@ -7,6 +7,7 @@
 #include <uhd/utils/safe_main.hpp>
 
 #include "hw_iface_impl.hpp"
+#include "config.hpp"
 
 void rx_cal_test()
 {
@@ -45,21 +46,11 @@ void rx_tx_cal_test()
 
 
     std::cout << "Transmitting calibrated Tx signal" << std::endl;
-    float h_ref_02_mag = std::abs(rx_cal[1]);
-    float h_tx_02_mag = std::abs(tx_cal[1]);
-    float scale02 = (h_tx_02_mag / h_ref_02_mag / 0.9394f);
-    std::cout << "h_ref = " << h_ref_02_mag << std::endl
-              << "h_tx = " << h_tx_02_mag << std::endl
-              << "scale = " << scale02 << std::endl;
+    
+    std::complex<float> tx_scale_02;
+    tx_scale_02 = tx_cal[1] / rx_cal[1] / ct_02;
 
-    float h_ref_02_phase = std::arg(rx_cal[1]);
-    float h_tx_02_phase = std::arg(tx_cal[1]);
-    float scale02_phase = (h_tx_02_phase - h_ref_02_phase - (-6.22f * ((2.0f * (float)M_PI) / 360.0f)));
-    std::cout << "h_ref = " << h_ref_02_phase << std::endl
-              << "h_tx = " << h_tx_02_phase << std::endl
-              << "scale = " << scale02_phase << std::endl;
-
-    tx_adj[2] = (tx_adj[2] / scale02) / std::polar(1.0f, scale02_phase);
+    tx_adj[2] = (tx_adj[2] / tx_scale_02);
 
     hw->send_tx_cal_tones_async(tx_adj);
     boost::this_thread::sleep(boost::posix_time::seconds(60));

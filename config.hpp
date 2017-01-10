@@ -1,6 +1,8 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#include <complex>
+
 #define IP_USRP_0 "192.168.10.2"
 #define IP_USRP_1 "192.168.10.3"
 
@@ -9,5 +11,8 @@
 
 //lp = remez(128, [0 0.04 0.1 1], [1.0, 1.0, 0.000001, 0.000001]);
 extern const double tx_rx_cal_lp[];
+extern const std::complex<float> ct_01;
+extern const std::complex<float> ct_02;
+extern const std::complex<float> ct_03;
 
 #endif

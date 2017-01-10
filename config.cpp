@@ -1,5 +1,9 @@
 #include "config.hpp"
 
+const std::complex<float> ct_01 = std::polar(1.0f, 0.0f);
+const std::complex<float> ct_02 = std::polar(0.9394f, -0.10856f);
+const std::complex<float> ct_03 = std::polar(1.0f, 0.0f);
+
 const double tx_rx_cal_lp[129] = 
 {
 0.0002864090001905463,
