@@ -1,8 +1,21 @@
 #include "config.hpp"
 
-const std::complex<float> ct_01 = std::polar(1.0f, 0.0f);
-const std::complex<float> ct_02 = std::polar(0.9394f, -0.10856f);
-const std::complex<float> ct_03 = std::polar(1.0f, 0.0f);
+// ############# Notes on calibration ##############
+//
+// Calculate correction factors as follows:
+// c0x = (g_loopback / g_ref / g_tx) arg (phi_loopback - phi_ref - phi_tx)
+//
+
+const std::complex<float> ct_01 = std::polar(0.88495f, -0.0244350f);
+const std::complex<float> ct_02 = std::polar(0.89624f, -0.14173f);
+const std::complex<float> ct_03 = std::polar(0.8486f, 0.07854f);
+
+//
+// Apply factors as follows:
+// tx_scale_0x = tx_cal[x-1] / rx_cal[x-1] / ct_0x;
+// tx_adj[x] = (tx_adj[x] / tx_scale_0x);
+//
+// #################################################
 
 const double tx_rx_cal_lp[129] = 
 {

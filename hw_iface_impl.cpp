@@ -11,20 +11,11 @@
 #include <uhd/types/tune_result.hpp>
 #include "config.hpp"
 
-hw_iface_impl::hw_iface_impl():ref_sig_num_samps_per_periode(1024), tx_cal_thread(0),
-                                rx_cal_data{std::polar(1.0f, 0.0f),
-                                            std::polar(1.0f, (float)M_PI*(57.6f / 180.0f)),
-                                            std::polar(1.0f, (float)M_PI*(-6.6f / 180.0f)),
-                                            std::polar(1.0f, (float)M_PI*(0.9f / 180.0f))},
+hw_iface_impl::hw_iface_impl(): tx_const_thread(0),
                                 filter_lp()
 {
 
     filter_lp.load_taps(tx_rx_cal_lp, 129);
-
-    for( int i = 0; i < ref_sig_num_samps_per_periode; i++) {
-        sine_table.push_back(std::polar(1.0f,
-            (float)(((2.0f*M_PI) / (float)ref_sig_num_samps_per_periode) * i)));
-    }
 
     //create a tx_usrp device
     uhd::device_addr_t addr_args;
@@ -119,7 +110,7 @@ hw_iface_impl::hw_iface_impl():ref_sig_num_samps_per_periode(1024), tx_cal_threa
 }
 
 
-void hw_iface_impl::cal_rx_channels(std::complex<float>* cal_out, bool tx_ref)
+void hw_iface_impl::cal_rx(std::complex<float>* cal_out, bool tx_ref)
 {
     int num_avg = 8;
     int num_samps = 8*8192;
@@ -287,13 +278,12 @@ void hw_iface_impl::cal_rx_channels(std::complex<float>* cal_out, bool tx_ref)
     float scale_03 = rms3 / rms0;
 
     std::cout << "###### Cal Report ##########" << std::endl << std::endl;
-    std::cout << "Phi 01: " << (rx_01_phi_avg / (2.0f * M_PI)) * 360.0 << std::endl;
-    std::cout << "Phi 02: " << (rx_02_phi_avg / (2.0f * M_PI)) * 360.0 << std::endl;
-    std::cout << "Phi 03: " << (rx_03_phi_avg / (2.0f * M_PI)) * 360.0 << std::endl;
-    std::cout << "Vrms 0: " << rms0 << std::endl;
-    std::cout << "Vrms 1: " << rms1 << std::endl;
-    std::cout << "Vrms 2: " << rms2 << std::endl;
-    std::cout << "Vrms 3: " << rms3 << std::endl << std::endl;
+    std::cout << "phi_01: " << (rx_01_phi_avg / (2.0f * M_PI)) * 360.0 << std::endl;
+    std::cout << "phi_02: " << (rx_02_phi_avg / (2.0f * M_PI)) * 360.0 << std::endl;
+    std::cout << "phi_03: " << (rx_03_phi_avg / (2.0f * M_PI)) * 360.0 << std::endl;
+    std::cout << "g_01: " << rms1 / rms0 << std::endl;
+    std::cout << "g_02: " << rms2 / rms0 << std::endl;
+    std::cout << "g_03: " << rms3 / rms0 << std::endl;
     std::cout << "###### Cal Report End ######" << std::endl;
     
     cal_out[0] = std::polar(scale_01, rx_01_phi_avg);
@@ -301,31 +291,53 @@ void hw_iface_impl::cal_rx_channels(std::complex<float>* cal_out, bool tx_ref)
     cal_out[2] = std::polar(scale_03, rx_03_phi_avg);
 }
 
-void hw_iface_impl::send_tx_cal_tones_async(std::complex<float>* cal)
+void hw_iface_impl::tx_const_async(std::complex<float>* s)
 {
-    if(this->tx_cal_thread) {
+    if(this->tx_const_thread) {
         std::cout << "Existing TX cal thread detected" << std::endl;
         return;
     }
-    this->run_tx_cal_tones_loop = true;
-    this->tx_cal_thread = new boost::thread(
-                            boost::bind(&hw_iface_impl::send_tx_cal_tones,
-                                        this, cal));
+    this->run_tx_const_loop = true;
+    this->tx_const_thread = new boost::thread(
+                            boost::bind(&hw_iface_impl::tx_const,
+                                        this, s));
 }
 
-void hw_iface_impl::end_tx_cal_tones_async()
+void hw_iface_impl::end_tx_const_async()
 {
-    if(!this->tx_cal_thread) {
+    if(!this->tx_const_thread) {
         std::cout << "No TX cal thread to end" << std::endl;
         return;
     }
 
-    this->run_tx_cal_tones_loop = false;
-    this->tx_cal_thread->join();
-    this->tx_cal_thread = 0;
+    this->run_tx_const_loop = false;
+    this->tx_const_thread->join();
+    this->tx_const_thread = 0;
 }
 
-void hw_iface_impl::send_tx_cal_tones(std::complex<float>* cal)
+/*
+void hw_iface_impl::send_buffers(std::vector<std::complex<float>* > &tx, int buffer_len)
+{
+
+    for(int i = 1; i < 4; i++) {
+      for(int j = 0; i < buffer_len; i++) {
+        tx[i][j] /= cal[i-1];
+      }
+    }
+
+    uhd::tx_metadata_t meta;
+    std::cout << "starting burst" << std::endl;
+    meta.start_of_burst = true;
+    meta.end_of_burst = true;
+    meta.has_time_spec = true;
+    meta.time_spec = this->usrp->get_time_now() +
+                        uhd::time_spec_t(0.5);
+
+    this->tx_streamer->send(buffers, buffer_len, meta);
+}
+*/
+
+void hw_iface_impl::tx_const(std::complex<float>* s)
 {
 
     int buffer_len = this->tx_streamer->get_max_num_samps();
@@ -344,9 +356,7 @@ void hw_iface_impl::send_tx_cal_tones(std::complex<float>* cal)
 
     for(int j = 0; j < 4; j++) {
       std::complex<float> tmp;
-      tmp = cal[j];
-      std::cout << "Loding cal for TX chan "
-                << j << " " << std::abs(tmp) << std::endl;
+      tmp = s[j];
       for(int i = 0; i < buffer_len; i++) {
         ((std::complex<float>*)buffers[j])[i] = tmp;
       }
@@ -365,7 +375,7 @@ void hw_iface_impl::send_tx_cal_tones(std::complex<float>* cal)
     meta.end_of_burst = false;
     meta.has_time_spec = false;
 
-    while(run_tx_cal_tones_loop) {
+    while(run_tx_const_loop) {
         this->tx_streamer->send(buffers, buffer_len, meta);
     }
 

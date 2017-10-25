@@ -17,23 +17,23 @@ class hw_iface_impl : public hw_iface
 {
     public:
         hw_iface_impl();
-        void cal_rx_channels(std::complex<float>* cal_out, bool tx_ref) override;
-        void send_tx_cal_tones_async(std::complex<float>* cal) override;
-        void end_tx_cal_tones_async() override;
-        void send_tx_cal_tones(std::complex<float>* cal) override;
-        virtual ~hw_iface_impl(){};
 
+        void cal_rx(std::complex<float>* cal_out, bool tx_ref) override;
+
+        void tx_const_async(std::complex<float>* cal) override;
+        void end_tx_const_async() override;
+        void tx_const(std::complex<float>* cal) override;
+
+        virtual ~hw_iface_impl(){};
 
     private:
         uhd::usrp::multi_usrp::sptr usrp;
         uhd::tx_streamer::sptr tx_streamer;
         uhd::rx_streamer::sptr rx_streamer;
-        std::vector<std::complex<float> > sine_table;
-        int ref_sig_num_samps_per_periode;
-        bool run_tx_cal_tones_loop;
-        boost::thread* tx_cal_thread;
-        std::complex<float> rx_cal_data[4];
-        std::complex<float> tx_cal_data[4];
+
+        bool run_tx_const_loop;
+        boost::thread* tx_const_thread;
+
         filter filter_lp;
 
 };
